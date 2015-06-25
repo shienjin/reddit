@@ -20,26 +20,26 @@ def display(p):
 
 def transform(p, t):
     "Transforms polyomino p using transformation t and then normalizes it"
-    result = set()
+    result = []
     n = len(p)
     for x in range(n):
         for y in range(n):
             if (x, y) in p:
-                result.add(t(x, y))
+                result.append(t(x, y))
     return normalize(result)
 
 
 def normalize(p):
-    "Translates p so that all its x,y coords are non-negative"
+    "Translates p so that all its x,y coords are non-negative and sorted"
     min_x = min(x for (x, y) in p)
     min_y = min(y for (x, y) in p)
-    return set([(x-min_x, y-min_y) for (x, y) in p])
+    return sorted([(x-min_x, y-min_y) for (x, y) in p])
 
 
 def is_connected((x, y), p):
     "Checks if (x,y) is connnected to polyomino p but not part of p"
     s = set([(x+1, y), (x-1, y), (x, y-1), (x, y+1)])
-    return (x, y) not in p and len(s.intersection(p)) > 0
+    return (x, y) not in p and len(s.intersection(set(p))) > 0
 
 
 def coordinate_extensions(p):
@@ -54,16 +54,16 @@ def extend(p):
     "Returns a list of polyominoes extending p by one"
     results = []
     for (x, y) in coordinate_extensions(p):
-        q = p.copy()
-        q.add((x, y))
-        q = normalize(q)
-        if is_unique(q, results):
+        q = list(p)
+        q.append((x, y))
+        q = canonical(normalize(q))
+        if q not in results:  # is_unique(q, results):
             results.append(q)
-    return results
+    return sorted(results)
 
 
-def is_similar(p, q):
-    "Checks if p and q are similar polyominoes"
+def canonical(p):
+    "Returns the canonical form of polyomino p"
     transformations = [lambda x, y: (x, y),
                        lambda x, y: (x, -y),
                        lambda x, y: (-x, y),
@@ -73,41 +73,33 @@ def is_similar(p, q):
                        lambda x, y: (-y, x),
                        lambda x, y: (-y, -x),
                        ]
-    return q in [transform(p, t) for t in transformations]
-
-
-def is_unique(p, polyominoes):
-    "Checks if p is a unique polyomino in the list of given polyominoes"
-    for q in polyominoes:
-        if is_similar(p, q):
-            return False
-    return True
+    return min(transform(p, t) for t in transformations)
 
 
 def polyominoes(n):
     "Returns a list of all polyominoes of size n"
     if n == 1:
-        return [set([(0, 0)])]
+        return [[(0, 0)]]
 
     results = []
     for p in polyominoes(n-1):
         for q in extend(p):
-            if is_unique(q, results):
+            if q not in results:
                 results.append(q)
 
-    return results
+    return sorted(results)
 
 
 def tests():
-    p = set([(0, 0), (0, 1), (0, 2), (1, 2)])
+    p = [(0, 0), (0, 1), (0, 2), (1, 2)]
     assert is_connected((1, 3), p) is True
     assert is_connected((1, 4), p) is False
     assert is_connected((0, 1), p) is False
     assert is_connected((-1, 0), p) is True
     assert is_connected((-1, -1), p) is False
 
-    q = set([(0, 0), (1, 0), (2, 0), (2, 1)])
-    r = set([(0, 0), (1, 0), (2, 0), (1, 1)])
+    q = [(0, 0), (1, 0), (2, 0), (2, 1)]
+    r = [(0, 0), (1, 0), (2, 0), (1, 1)]
     assert is_similar(p, q) is True
     assert is_similar(q, p) is True
     assert is_similar(p, r) is False
@@ -115,28 +107,43 @@ def tests():
     assert is_similar(q, r) is False
     assert is_similar(r, q) is False
 
-    one = set([(0, 0)])
-    two = set([(0, 0), (0, 1)])
-    tee = [set([(0, 1), (1, 0), (1, 1)]),
-           set([(0, 0), (0, 1), (0, 2)])]
-    assert extend(one) == [two]
-    assert extend(two) == tee
+    one = [(0, 0)]
+    two_1 = [(0, 0), (0, 1)]
+    two_2 = [(0, 0), (1, 0)]
+    tee = [(0, 0), (0, 1), (0, 2)]
+    tee_1 = sorted([(0, 0), (1, 0), (0, 1)])
+    tee_2 = sorted([(0, 1), (1, 0), (1, 1)])
+    tee_3 = sorted([(0, 0), (1, 1), (0, 1)])
+
+    assert canonical(two_1) == two_1
+    assert canonical(two_2) == two_1
+    assert canonical(tee_1) == tee_1
+    assert canonical(tee_2) == tee_1
+    assert canonical(tee_3) == tee_1
+
+    assert extend(one) == [two_1]
+    assert extend(two_1) == [tee, tee_1]
 
     assert polyominoes(1) == [one]
-    assert polyominoes(2) == [two]
-    assert polyominoes(3) == tee
+    assert polyominoes(2) == [two_1]
+    assert polyominoes(3) == [tee, tee_1]
 
     print 'Yay! All test cases passed.'
     print ''
 
-tests()
 
-n = 6
-start = time.time()
-p_list = polyominoes(n)
-end = time.time()
-print 'Here are all %d possibilities of %d-polyominoes:' % (len(p_list), n)
-print ''
-for p in p_list:
-    display(p)
-print 'Hew... I took %.3f seconds to generate this list' % (end - start)
+def display_polyominoes(n):
+    "Generate and display all n-polyominoes"
+    start = time.time()
+    p_list = polyominoes(n)
+    end = time.time()
+    print 'Here are all %d possibilities of %d-polyominoes:' % (len(p_list), n)
+    print ''
+    for p in p_list:
+        display(p)
+    print 'Hew... I took %.3f seconds to generate this list' % (end - start)
+    return None
+
+
+tests()
+display_polyominoes(6)
