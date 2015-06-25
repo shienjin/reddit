@@ -57,7 +57,7 @@ def extend(p):
         q = list(p)
         q.append((x, y))
         q = canonical(normalize(q))
-        if q not in results:  # is_unique(q, results):
+        if q not in results:
             results.append(q)
     return sorted(results)
 
